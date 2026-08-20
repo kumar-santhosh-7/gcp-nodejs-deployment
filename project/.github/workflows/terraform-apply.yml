@@ -1,0 +1,61 @@
+name: Terraform Plan/Apply
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['terraform/**']
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  plan:
+    name: terraform plan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform/environments/prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.DEPLOYER_SA_EMAIL }}
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - run: |
+          terraform plan -no-color \
+            -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
+            -var="github_repo=${{ github.repository }}" \
+            -var="container_image=${{ vars.PLACEHOLDER_IMAGE }}" \
+            -var="alert_email=${{ vars.ALERT_EMAIL }}" \
+            -var="google_chat_webhook_url=${{ secrets.GCHAT_WEBHOOK_URL }}" \
+            -out=tfplan
+
+  apply:
+    name: terraform apply (manual gate)
+    needs: plan
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production # requires a manual approver configured in repo settings
+    defaults:
+      run:
+        working-directory: terraform/environments/prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.DEPLOYER_SA_EMAIL }}
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform init
+      - run: |
+          terraform apply -auto-approve \
+            -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
+            -var="github_repo=${{ github.repository }}" \
+            -var="container_image=${{ vars.PLACEHOLDER_IMAGE }}" \
+            -var="alert_email=${{ vars.ALERT_EMAIL }}" \
+            -var="google_chat_webhook_url=${{ secrets.GCHAT_WEBHOOK_URL }}"

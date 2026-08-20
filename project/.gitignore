@@ -1,0 +1,23 @@
+# Node
+node_modules/
+npm-debug.log
+coverage/
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+override.tf
+override.tf.json
+
+# Secrets / env
+.env
+.env.*
+*.pem
+*.key
+service-account*.json

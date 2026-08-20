@@ -1,0 +1,17 @@
+project_id      = "my-gcp-project-id"
+region          = "asia-south1"
+name_prefix     = "nodeapp"
+github_repo     = "your-github-org/your-repo-name"
+container_image = "asia-south1-docker.pkg.dev/my-gcp-project-id/nodeapp-repo/api:latest"
+
+min_instances          = 0
+max_instances           = 5
+allow_unauthenticated   = false
+sql_deletion_protection = true
+
+alert_email = "you@example.com"
+
+# Do NOT put the real webhook URL here if this file is committed.
+# Pass it as -var="google_chat_webhook_url=..." or TF_VAR_google_chat_webhook_url
+# from a CI secret instead. Left here only to document the shape.
+# google_chat_webhook_url = "https://chat.googleapis.com/v1/spaces/XXX/messages?key=XXX&token=XXX"
