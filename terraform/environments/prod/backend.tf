@@ -9,7 +9,7 @@
 
 terraform {
   backend "gcs" {
-    bucket = "REPLACE_WITH_YOUR_TFSTATE_BUCKET"
+    bucket = "demo-staging-terraform-bucket"
     prefix = "nodeapp/prod"
   }
 }

@@ -10,16 +10,24 @@ resource "google_monitoring_notification_channel" "email" {
   }
 }
 
+# resource "google_monitoring_notification_channel" "gchat" {
+#   display_name = "${var.name_prefix} Google Chat warnings"
+#   type         = "webhook_tokenauth"
+#   labels = {
+#     url = var.google_chat_webhook_url
+#   }
+#   # The webhook URL itself is sensitive (it's a bearer-token-bearing
+#   # URL) - pass it in via a TF_VAR / CI secret, never commit it.
+#   sensitive_labels {
+#     auth_token = var.google_chat_webhook_url
+#   }
+# }
+
 resource "google_monitoring_notification_channel" "gchat" {
   display_name = "${var.name_prefix} Google Chat warnings"
   type         = "webhook_tokenauth"
   labels = {
     url = var.google_chat_webhook_url
-  }
-  # The webhook URL itself is sensitive (it's a bearer-token-bearing
-  # URL) - pass it in via a TF_VAR / CI secret, never commit it.
-  sensitive_labels {
-    auth_token = var.google_chat_webhook_url
   }
 }
 
