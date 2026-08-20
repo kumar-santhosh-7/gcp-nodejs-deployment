@@ -1,0 +1,74 @@
+name: CD
+
+# Runs only after the CI workflow completes successfully on staging - this
+# is what enforces "deploy only on successful CI".
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [staging]
+    types: [completed]
+
+permissions:
+  contents: read
+  id-token: write # required for Workload Identity Federation OIDC token
+
+env:
+  REGION: asia-south1
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REPO: nodeapp-repo
+  SERVICE: nodeapp-svc
+  IMAGE_NAME: api
+
+jobs:
+  deploy:
+    name: Build, push, deploy to Cloud Run
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: production # gives you a manual-approval gate in GitHub if configured
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      # Workload Identity Federation - GitHub's OIDC token is exchanged
+      # for a short-lived GCP access token. No service-account JSON key
+      # is ever generated, stored, or rotated.
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.DEPLOYER_SA_EMAIL }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build image
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.IMAGE_NAME }}:${{ github.event.workflow_run.head_sha }}"
+          docker build -t "$IMAGE" ./app
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Push image to Artifact Registry
+        run: docker push "$IMAGE"
+
+      - name: Deploy to Cloud Run (new revision, image update only)
+        run: |
+          gcloud run deploy ${{ env.SERVICE }} \
+            --image="$IMAGE" \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }} \
+            --quiet
+        # Note: this updates only the container image on the existing
+        # service. All other config (VPC connector, secrets, SA, scaling,
+        # ingress) is owned by Terraform and intentionally NOT touched
+        # here, so CD can never drift infra away from what Terraform
+        # provisioned.
+
+      - name: Verify readiness
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE }} \
+            --region=${{ env.REGION }} --project=${{ env.PROJECT_ID }} \
+            --format='value(status.url)')
+          echo "Deployed at $URL"

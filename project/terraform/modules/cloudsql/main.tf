@@ -1,0 +1,74 @@
+resource "random_id" "suffix" {
+  byte_length = 3
+}
+
+resource "google_sql_database_instance" "instance" {
+  name             = "${var.name_prefix}-pg-${random_id.suffix.hex}"
+  database_version = var.database_version
+  region           = var.region
+
+  # Prevents `terraform destroy` from silently dropping the DB in prod.
+  deletion_protection = var.deletion_protection
+
+  settings {
+    tier              = var.tier
+    availability_type = var.availability_type
+    disk_autoresize   = true
+    disk_type         = "PD_SSD"
+
+    backup_configuration {
+      enabled                        = true
+      point_in_time_recovery_enabled = true
+      start_time                     = "02:00"
+      transaction_log_retention_days = 7
+    }
+
+    ip_configuration {
+      # No public IP. The instance is only reachable over the private
+      # VPC peering established by google_service_networking_connection.
+      ipv4_enabled    = false
+      private_network = var.vpc_id
+      # Require SSL/TLS even on private connections as defense in depth.
+      ssl_mode = "ENCRYPTED_ONLY"
+    }
+
+    insights_config {
+      query_insights_enabled  = true
+      record_application_tags = true
+    }
+
+    database_flags {
+      name  = "log_connections"
+      value = "on"
+    }
+
+    maintenance_window {
+      day  = 7 # Sunday
+      hour = 3
+    }
+  }
+
+  depends_on = [var.private_vpc_connection]
+}
+
+resource "google_sql_database" "database" {
+  name     = var.db_name
+  instance = google_sql_database_instance.instance.name
+}
+
+# Application DB user. Password is generated here and pushed to Secret
+# Manager by the secrets module - it is never written to state as a
+# plain output and never appears in CI/CD logs.
+resource "random_password" "db_password" {
+  length  = 24
+  special = true
+  # Avoid characters that commonly need escaping in connection strings /
+  # shell contexts.
+  override_special = "_-!#%^&*()+="
+}
+
+resource "google_sql_user" "app_user" {
+  name     = var.db_user
+  instance = google_sql_database_instance.instance.name
+  password = random_password.db_password.result
+}
