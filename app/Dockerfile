@@ -5,6 +5,7 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 # Only copy manifest files first so this layer is cached unless deps change
 COPY package.json package-lock.json* ./
+# RUN npm install
 RUN npm ci --omit=dev --no-audit --no-fund
 
 # ---------- Stage 2: minimal runtime image ----------
