@@ -32,9 +32,11 @@ resource "google_sql_database_instance" "instance" {
       ipv4_enabled    = false
       private_network = var.vpc_id
       # Require SSL/TLS even on private connections as defense in depth.
-      # tfsec:ignore:google-sql-encrypt-in-transit-data -- ssl_mode=ENCRYPTED_ONLY already enforces TLS; require_ssl is deprecated
-      ssl_mode = "ENCRYPTED_ONLY"
-      require_ssl     = true
+      # The Cloud SQL API only accepts one of ssl_mode/require_ssl per
+      # request - sending both causes a 400 invalidRequest. require_ssl
+      # is deprecated in favor of ssl_mode, but is kept here as the
+      # active field; ssl_mode is intentionally omitted.
+      require_ssl = true
     }
 
     insights_config {

@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [staging-yes]
+    branches: [staging]
   push:
-    branches: [staging-yes]
+    branches: [staging]
   workflow_dispatch: {}
 
 # Least-privilege default: nothing is granted unless a job needs it.
