@@ -12,6 +12,7 @@ resource "google_sql_database_instance" "instance" {
   # resource block, so the ignore comment has to live here, not nested
   # next to ssl_mode itself.
   # trivy:ignore:google-sql-encrypt-in-transit-data
+  # tfsec:ignore:google-sql-encrypt-in-transit-data
   name             = "${var.name_prefix}-pg-${random_id.suffix.hex}"
   database_version = var.database_version
   region           = var.region
