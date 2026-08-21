@@ -42,6 +42,29 @@ resource "google_sql_database_instance" "instance" {
       value = "on"
     }
 
+    # Additional Postgres audit/diagnostic logging flags - closes out
+    # the remaining trivy findings on this instance (checkpoint, lock
+    # wait, disconnection, and temp file logging).
+    database_flags {
+      name  = "log_checkpoints"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_disconnections"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_lock_waits"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_temp_files"
+      value = "0"
+    }
+
     maintenance_window {
       day  = 7 # Sunday
       hour = 3
