@@ -142,6 +142,7 @@ locals {
     "roles/iam.roleAdmin",
     "roles/resourcemanager.projectIamAdmin",
     "roles/serviceusage.serviceUsageAdmin",
+    "roles/storage.admin",
   ]
 }
 
