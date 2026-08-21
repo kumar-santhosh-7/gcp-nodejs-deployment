@@ -5,6 +5,7 @@ on:
     branches: [staging]
   push:
     branches: [staging]
+  workflow_dispatch:
 
 # Least-privilege default: nothing is granted unless a job needs it.
 permissions:
@@ -45,7 +46,7 @@ jobs:
       # SAST-style scan for common JS security issues (secrets, unsafe
       # patterns) in addition to npm audit's dependency-CVE scan.
       - name: Trivy filesystem scan (source + deps)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: app
@@ -63,7 +64,7 @@ jobs:
         run: docker build -t ci-scan-image:${{ github.sha }} ./app
 
       - name: Trivy image scan
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ci-scan-image:${{ github.sha }}
           severity: HIGH,CRITICAL
@@ -72,7 +73,7 @@ jobs:
 
       # Fails the build if a secret was accidentally baked into a layer.
       - name: Scan image for embedded secrets
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ci-scan-image:${{ github.sha }}
           scanners: secret

@@ -3,6 +3,15 @@ resource "random_id" "suffix" {
 }
 
 resource "google_sql_database_instance" "instance" {
+  # Note: trivy's google-sql-encrypt-in-transit-data check currently only
+  # recognizes the legacy `require_ssl` boolean, not the newer `ssl_mode`
+  # attribute used below in ip_configuration - this is a known ruleset gap
+  # (see aquasecurity/trivy discussion #6646), not a real finding. Google's
+  # own docs recommend setting ssl_mode alone going forward and NOT setting
+  # require_ssl alongside it. Trivy associates this check with the whole
+  # resource block, so the ignore comment has to live here, not nested
+  # next to ssl_mode itself.
+  # trivy:ignore:google-sql-encrypt-in-transit-data
   name             = "${var.name_prefix}-pg-${random_id.suffix.hex}"
   database_version = var.database_version
   region           = var.region
@@ -40,6 +49,29 @@ resource "google_sql_database_instance" "instance" {
     database_flags {
       name  = "log_connections"
       value = "on"
+    }
+
+    # Additional Postgres audit/diagnostic logging flags - closes out
+    # the remaining trivy findings on this instance (checkpoint, lock
+    # wait, disconnection, and temp file logging).
+    database_flags {
+      name  = "log_checkpoints"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_disconnections"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_lock_waits"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_temp_files"
+      value = "0"
     }
 
     maintenance_window {

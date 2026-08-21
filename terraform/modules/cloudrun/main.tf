@@ -91,6 +91,10 @@ resource "google_cloud_run_v2_service" "service" {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
   }
+
+  # lifecycle {
+  #   ignore_changes = all
+  # }
 }
 
 # Who can invoke the service. Default: require authentication (no

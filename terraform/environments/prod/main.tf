@@ -38,7 +38,7 @@ locals {
 }
 
 resource "google_project_service" "apis" {
-  for_each                  = toset(local.required_apis)
+  for_each                   = toset(local.required_apis)
   project                    = var.project_id
   service                    = each.value
   disable_dependent_services = false
@@ -98,12 +98,12 @@ module "iam" {
 ############################################
 
 module "cloudsql" {
-  source                  = "../../modules/cloudsql"
-  name_prefix              = var.name_prefix
-  region                   = var.region
-  vpc_id                   = module.network.vpc_self_link
-  private_vpc_connection   = module.network.private_vpc_connection
-  deletion_protection      = var.sql_deletion_protection
+  source                 = "../../modules/cloudsql"
+  name_prefix            = var.name_prefix
+  region                 = var.region
+  vpc_id                 = module.network.vpc_self_link
+  private_vpc_connection = module.network.private_vpc_connection
+  deletion_protection    = var.sql_deletion_protection
 }
 
 ############################################
@@ -111,12 +111,12 @@ module "cloudsql" {
 ############################################
 
 module "secrets" {
-  source                         = "../../modules/secrets"
-  name_prefix                    = var.name_prefix
-  db_user                        = module.cloudsql.db_user
-  db_password                    = module.cloudsql.db_password
-  db_name                        = module.cloudsql.db_name
-  runtime_service_account_email  = module.iam.runtime_sa_email
+  source                        = "../../modules/secrets"
+  name_prefix                   = var.name_prefix
+  db_user                       = module.cloudsql.db_user
+  db_password                   = module.cloudsql.db_password
+  db_name                       = module.cloudsql.db_name
+  runtime_service_account_email = module.iam.runtime_sa_email
 }
 
 ############################################
@@ -124,19 +124,19 @@ module "secrets" {
 ############################################
 
 module "cloudrun" {
-  source                          = "../../modules/cloudrun"
-  name_prefix                     = var.name_prefix
-  region                          = var.region
-  container_image                 = var.container_image
-  runtime_service_account_email   = module.iam.runtime_sa_email
-  vpc_connector_id                = module.network.connector_id
-  db_private_ip                   = module.cloudsql.private_ip_address
-  db_name                         = module.cloudsql.db_name
-  db_user_secret_id               = module.secrets.secret_ids["db_user"]
-  db_password_secret_id           = module.secrets.secret_ids["db_password"]
-  min_instances                   = var.min_instances
-  max_instances                   = var.max_instances
-  allow_unauthenticated           = var.allow_unauthenticated
+  source                        = "../../modules/cloudrun"
+  name_prefix                   = var.name_prefix
+  region                        = var.region
+  container_image               = var.container_image
+  runtime_service_account_email = module.iam.runtime_sa_email
+  vpc_connector_id              = module.network.connector_id
+  db_private_ip                 = module.cloudsql.private_ip_address
+  db_name                       = module.cloudsql.db_name
+  db_user_secret_id             = module.secrets.secret_ids["db_user"]
+  db_password_secret_id         = module.secrets.secret_ids["db_password"]
+  min_instances                 = var.min_instances
+  max_instances                 = var.max_instances
+  allow_unauthenticated         = var.allow_unauthenticated
 }
 
 ############################################
@@ -144,9 +144,9 @@ module "cloudrun" {
 ############################################
 
 module "monitoring" {
-  source                    = "../../modules/monitoring"
-  name_prefix               = var.name_prefix
-  cloud_run_service_name    = module.cloudrun.service_name
-  alert_email                = var.alert_email
-  google_chat_webhook_url    = var.google_chat_webhook_url
+  source                  = "../../modules/monitoring"
+  name_prefix             = var.name_prefix
+  cloud_run_service_name  = module.cloudrun.service_name
+  alert_email             = var.alert_email
+  google_chat_webhook_url = var.google_chat_webhook_url
 }
