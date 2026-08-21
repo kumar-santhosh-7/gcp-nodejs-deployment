@@ -30,12 +30,12 @@ resource "google_sql_database_instance" "instance" {
       private_network = var.vpc_id
       # Require SSL/TLS even on private connections as defense in depth.
       # Note: trivy's google-sql-encrypt-in-transit-data check currently
-+     # only recognizes the legacy `require_ssl` boolean, not the newer
-+     # `ssl_mode` attribute used here - this is a known ruleset gap
-+     # (see aquasecurity/trivy discussion #6646), not a real finding.
-+     # Google's own docs recommend setting ssl_mode alone going forward
-+     # and NOT setting require_ssl alongside it.
-+     # trivy:ignore:google-sql-encrypt-in-transit-data   
+      # only recognizes the legacy `require_ssl` boolean, not the newer
+      # `ssl_mode` attribute used here - this is a known ruleset gap
+      # (see aquasecurity/trivy discussion #6646), not a real finding.
+      # Google's own docs recommend setting ssl_mode alone going forward
+      # and NOT setting require_ssl alongside it.
+      # trivy:ignore:google-sql-encrypt-in-transit-data   
       ssl_mode = "ENCRYPTED_ONLY"
     }
 
