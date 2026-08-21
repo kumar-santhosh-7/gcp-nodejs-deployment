@@ -1,11 +1,13 @@
 name: CD
 
-# Runs only after the CI workflow completes successfully on main - this
-# is what enforces "deploy only on successful CI".
+# Runs only after the CI workflow completes successfully on staging - this
+# is what enforces "deploy only on successful CI". `staging` is the branch
+# used to deploy this single (prod-named) Terraform environment for the
+# exercise - see README "Branch strategy".
 on:
   workflow_run:
     workflows: ["CI"]
-    branches: [main]
+    branches: [staging]
     types: [completed]
 
 permissions:

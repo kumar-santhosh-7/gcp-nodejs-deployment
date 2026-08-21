@@ -2,7 +2,7 @@ name: Terraform Plan/Apply
 
 on:
   pull_request:
-    branches: [main]
+    branches: [staging]
     paths: ['terraform/**']
   workflow_dispatch: {}
 
