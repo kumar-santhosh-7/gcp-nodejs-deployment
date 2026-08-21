@@ -3,16 +3,6 @@ resource "random_id" "suffix" {
 }
 
 resource "google_sql_database_instance" "instance" {
-  # Note: trivy's google-sql-encrypt-in-transit-data check currently only
-  # recognizes the legacy `require_ssl` boolean, not the newer `ssl_mode`
-  # attribute used below in ip_configuration - this is a known ruleset gap
-  # (see aquasecurity/trivy discussion #6646), not a real finding. Google's
-  # own docs recommend setting ssl_mode alone going forward and NOT setting
-  # require_ssl alongside it. Trivy associates this check with the whole
-  # resource block, so the ignore comment has to live here, not nested
-  # next to ssl_mode itself.
-  # trivy:ignore:google-sql-encrypt-in-transit-data
-  # tfsec:ignore:google-sql-encrypt-in-transit-data
   name             = "${var.name_prefix}-pg-${random_id.suffix.hex}"
   database_version = var.database_version
   region           = var.region
@@ -40,6 +30,7 @@ resource "google_sql_database_instance" "instance" {
       private_network = var.vpc_id
       # Require SSL/TLS even on private connections as defense in depth.
       ssl_mode = "ENCRYPTED_ONLY"
+      require_ssl = true
     }
 
     insights_config {
