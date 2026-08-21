@@ -1,11 +1,11 @@
 name: CD
 
-# Runs only after the CI workflow completes successfully on staging - this
+# Runs only after the CI workflow completes successfully on main - this
 # is what enforces "deploy only on successful CI".
 on:
   workflow_run:
     workflows: ["CI"]
-    branches: [staging]
+    branches: [main]
     types: [completed]
 
 permissions:
@@ -17,6 +17,7 @@ env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   REPO: nodeapp-repo
   SERVICE: nodeapp-svc
+  MIGRATE_JOB: nodeapp-migrate
   IMAGE_NAME: api
 
 jobs:
@@ -52,6 +53,23 @@ jobs:
 
       - name: Push image to Artifact Registry
         run: docker push "$IMAGE"
+
+      - name: Run DB migration (before deploying the service)
+        run: |
+          gcloud run jobs update ${{ env.MIGRATE_JOB }} \
+            --image="$IMAGE" \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }} \
+            --quiet
+          gcloud run jobs execute ${{ env.MIGRATE_JOB }} \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }} \
+            --wait
+        # Runs synchronously (--wait) and fails the workflow if the
+        # migration errors, so a broken schema change never reaches the
+        # deploy step below. Uses the exact same image as the service -
+        # app/scripts/migrate.js is the only thing that differs, via the
+        # job's command override in Terraform.
 
       - name: Deploy to Cloud Run (new revision, image update only)
         run: |

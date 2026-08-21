@@ -17,3 +17,7 @@ output "artifact_registry_repo" {
 output "cloudsql_instance_connection_name" {
   value = module.cloudsql.connection_name
 }
+
+output "migrate_job_name" {
+  value = module.cloudrun.migrate_job_name
+}

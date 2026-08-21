@@ -27,7 +27,16 @@ const pool = new Pool({
   max: Number(process.env.DB_POOL_MAX || 5),
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  // The CA cert is Cloud SQL's own server CA (fetched via `gcloud sql
+  // instances describe`, stored in Secret Manager, injected as DB_SSL_CA
+  // just like the other credentials - see terraform/modules/secrets and
+  // the DB_SSL_CA env block on the Cloud Run service). Passing it lets
+  // Node verify it's actually talking to our Cloud SQL instance, not
+  // just trusting whatever certificate is presented on the private IP.
+  ssl:
+    process.env.DB_SSL === 'true'
+      ? { rejectUnauthorized: true, ca: process.env.DB_SSL_CA }
+      : false,
 });
 
 pool.on('error', (err) => {

@@ -10,22 +10,15 @@ resource "google_monitoring_notification_channel" "email" {
   }
 }
 
-# resource "google_monitoring_notification_channel" "gchat" {
-#   display_name = "${var.name_prefix} Google Chat warnings"
-#   type         = "webhook_tokenauth"
-#   labels = {
-#     url = var.google_chat_webhook_url
-#   }
-#   # The webhook URL itself is sensitive (it's a bearer-token-bearing
-#   # URL) - pass it in via a TF_VAR / CI secret, never commit it.
-#   sensitive_labels {
-#     auth_token = var.google_chat_webhook_url
-#   }
-# }
-
 resource "google_monitoring_notification_channel" "gchat" {
   display_name = "${var.name_prefix} Google Chat warnings"
   type         = "webhook_tokenauth"
+  # For webhook_tokenauth channels, the Monitoring API only accepts a
+  # single "url" label - there's no separate auth_token label. The
+  # webhook URL itself already carries its auth token in the query
+  # string (...&token=...), so nothing needs to be split out. The URL
+  # is still sensitive as a whole - keep passing it in via a TF_VAR /
+  # CI secret, never commit it in a .tfvars file.
   labels = {
     url = var.google_chat_webhook_url
   }
@@ -55,6 +48,14 @@ resource "google_logging_metric" "error_count" {
 # CPU alert policy
 # - >70% for one datapoint -> WARNING -> Google Chat
 # - >80% sustained across subsequent datapoints -> CRITICAL -> email
+#
+# Note: run.googleapis.com/container/cpu/utilizations (and the memory
+# equivalent below) are DISTRIBUTION-valued, DELTA-kind metrics (a
+# histogram per sampling interval, not a single scalar) - ALIGN_MEAN
+# doesn't apply to distributions and Google's API rejects it outright.
+# ALIGN_PERCENTILE_99 is the standard aligner for these metrics, and
+# arguably the more correct choice for alerting anyway: it captures
+# spikes an average would smooth over.
 ############################################
 
 resource "google_monitoring_alert_policy" "cpu_warning" {
@@ -75,7 +76,7 @@ resource "google_monitoring_alert_policy" "cpu_warning" {
       duration        = "0s" # fire on first datapoint above threshold
       aggregations {
         alignment_period   = "60s"
-        per_series_aligner = "ALIGN_MEAN"
+        per_series_aligner = "ALIGN_PERCENTILE_99"
       }
       trigger {
         count = 1
@@ -110,7 +111,7 @@ resource "google_monitoring_alert_policy" "cpu_critical" {
       duration = "180s"
       aggregations {
         alignment_period   = "60s"
-        per_series_aligner = "ALIGN_MEAN"
+        per_series_aligner = "ALIGN_PERCENTILE_99"
       }
       trigger {
         count = 3
@@ -147,7 +148,7 @@ resource "google_monitoring_alert_policy" "memory_warning" {
       duration        = "0s"
       aggregations {
         alignment_period   = "60s"
-        per_series_aligner = "ALIGN_MEAN"
+        per_series_aligner = "ALIGN_PERCENTILE_99"
       }
       trigger {
         count = 1
@@ -180,7 +181,7 @@ resource "google_monitoring_alert_policy" "memory_critical" {
       duration        = "180s"
       aggregations {
         alignment_period   = "60s"
-        per_series_aligner = "ALIGN_MEAN"
+        per_series_aligner = "ALIGN_PERCENTILE_99"
       }
       trigger {
         count = 3

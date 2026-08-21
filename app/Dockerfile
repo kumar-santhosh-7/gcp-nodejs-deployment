@@ -38,6 +38,11 @@ ENV NODE_ENV=production \
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src
+# scripts/ is included so the same image can run as either the main
+# service (CMD below) or the one-shot migration Cloud Run Job, which
+# overrides the command to `node scripts/migrate.js` - one image, two
+# entrypoints, no separate migration image to build/push/keep in sync.
+COPY scripts ./scripts
 
 USER appuser
 

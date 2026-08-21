@@ -2,6 +2,9 @@ resource "random_id" "suffix" {
   byte_length = 3
 }
 
+# tfsec:ignore:google-sql-encrypt-in-transit-data -- ssl_mode=ENCRYPTED_ONLY already enforces TLS on all connections; require_ssl is deprecated by GCP in favor of ssl_mode
+#tfsec:ignore:google-sql-encrypt-in-transit-data
+#trivy:ignore:google-sql-encrypt-in-transit-data
 resource "google_sql_database_instance" "instance" {
   name             = "${var.name_prefix}-pg-${random_id.suffix.hex}"
   database_version = var.database_version
@@ -29,8 +32,9 @@ resource "google_sql_database_instance" "instance" {
       ipv4_enabled    = false
       private_network = var.vpc_id
       # Require SSL/TLS even on private connections as defense in depth.
+      # tfsec:ignore:google-sql-encrypt-in-transit-data -- ssl_mode=ENCRYPTED_ONLY already enforces TLS; require_ssl is deprecated
       ssl_mode = "ENCRYPTED_ONLY"
-      require_ssl = true
+      require_ssl     = true
     }
 
     insights_config {

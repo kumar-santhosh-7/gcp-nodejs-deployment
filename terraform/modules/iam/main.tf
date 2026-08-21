@@ -56,12 +56,16 @@ resource "google_service_account" "deployer" {
 resource "google_project_iam_custom_role" "deployer_role" {
   role_id     = "${replace(var.name_prefix, "-", "_")}_deployer"
   title       = "${var.name_prefix} CI/CD deployer"
-  description = "Minimal permissions to push images and deploy the Cloud Run revision"
+  description = "Minimal permissions to push images, deploy the Cloud Run revision, and run the migration job"
   permissions = [
     "run.services.get",
     "run.services.update",
     "run.services.create",
     "run.routes.invoke",
+    "run.jobs.get",
+    "run.jobs.update",
+    "run.jobs.run",
+    "run.executions.get",
     "artifactregistry.repositories.uploadArtifacts",
     "artifactregistry.repositories.downloadArtifacts",
     "artifactregistry.tags.create",
@@ -94,7 +98,7 @@ resource "google_iam_workload_identity_pool" "github_pool" {
 }
 
 resource "google_iam_workload_identity_pool_provider" "github_provider" {
-  workload_identity_pool_id         = google_iam_workload_identity_pool.github_pool.workload_identity_pool_id
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github_pool.workload_identity_pool_id
   workload_identity_pool_provider_id = "${var.name_prefix}-gh-provider"
   display_name                       = "GitHub OIDC provider"
 

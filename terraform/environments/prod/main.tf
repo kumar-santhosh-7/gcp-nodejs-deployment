@@ -116,6 +116,7 @@ module "secrets" {
   db_user                       = module.cloudsql.db_user
   db_password                   = module.cloudsql.db_password
   db_name                       = module.cloudsql.db_name
+  db_ssl_ca_cert                = module.cloudsql.server_ca_cert
   runtime_service_account_email = module.iam.runtime_sa_email
 }
 
@@ -134,6 +135,7 @@ module "cloudrun" {
   db_name                       = module.cloudsql.db_name
   db_user_secret_id             = module.secrets.secret_ids["db_user"]
   db_password_secret_id         = module.secrets.secret_ids["db_password"]
+  db_ssl_ca_secret_id           = module.secrets.secret_ids["db_ssl_ca_cert"]
   min_instances                 = var.min_instances
   max_instances                 = var.max_instances
   allow_unauthenticated         = var.allow_unauthenticated
