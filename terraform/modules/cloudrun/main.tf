@@ -105,6 +105,22 @@ resource "google_cloud_run_v2_service" "service" {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
   }
+
+  # cd.yml deploys new images directly via `gcloud run deploy`, bypassing
+  # Terraform entirely, so the live image is always ahead of whatever
+  # container_image this module was last applied with (often the
+  # PLACEHOLDER_IMAGE used for `terraform plan` in CI). Without this,
+  # every terraform apply would try to roll the service back to that
+  # placeholder. client/client_version are read-only bookkeeping fields
+  # that flip between "gcloud" and "terraform" depending on whichever
+  # tool last touched the resource - ignored for the same reason.
+  lifecycle {
+    ignore_changes = [
+      client,
+      client_version,
+      template[0].containers[0].image,
+    ]
+  }
 }
 
 # One-shot schema migration job. Reuses the exact same image as the
@@ -173,6 +189,16 @@ resource "google_cloud_run_v2_job" "migrate" {
         }
       }
     }
+  }
+
+  # See the ignore_changes note on google_cloud_run_v2_service.service
+  # above - cd.yml updates this job's image directly too.
+  lifecycle {
+    ignore_changes = [
+      client,
+      client_version,
+      template[0].template[0].containers[0].image,
+    ]
   }
 }
 
