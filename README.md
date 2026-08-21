@@ -111,6 +111,8 @@ intentionally never exposed to the open internet. To run it manually
 (e.g. the very first time, before any CD run) use `gcloud run jobs
 execute <name_prefix>-migrate --region=<region> --wait`.
 
+---
+
 ## Security measures taken
 
 - **No public IP on Cloud SQL** — `ipv4_enabled = false`; reachable only
@@ -162,6 +164,8 @@ execute <name_prefix>-migrate --region=<region> --wait`.
   full infra credentials — it uses the narrowly-scoped deployer role, so
   even a compromised CD run can't touch IAM, networking, or Cloud SQL.
 
+---
+
 ## Bootstrapping without long-lived keys
 
 This is the one genuine chicken-and-egg problem: the *first* `terraform
@@ -203,6 +207,8 @@ fallback is a single JSON key for a *bootstrap-only* SA, stored as a
 GitHub encrypted secret, used exactly once, then deleted/rotated — never
 used for routine CD.
 
+---
+
 ## Alerting setup, explained
 
 Two independent alert policies per metric (CPU and memory), each pointed
@@ -225,6 +231,8 @@ at a different notification channel, mirroring the requirement:
   with its own alert policy the same way if needed.
 - `alert_strategy.auto_close = "1800s"` auto-resolves stale incidents
   instead of leaving them open forever if metrics recover quietly.
+
+---
 
 ## Assumptions made
 
@@ -252,6 +260,8 @@ at a different notification channel, mirroring the requirement:
 - The GitHub Actions "Variables" used in the workflows (`GCP_PROJECT_ID`,
   `WORKLOAD_IDENTITY_PROVIDER`, etc.) are assumed to be configured once
   in repo settings after the bootstrap `apply`, as described above.
+
+---
 
 ## A note on how this was built
 
