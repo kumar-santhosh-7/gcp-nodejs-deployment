@@ -70,7 +70,6 @@ resource "google_project_iam_custom_role" "deployer_role" {
     "artifactregistry.repositories.downloadArtifacts",
     "artifactregistry.tags.create",
     "artifactregistry.tags.list",
-    "storage.objects.list",
   ]
 }
 
