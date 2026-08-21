@@ -5,6 +5,7 @@ on:
     branches: [staging]
   push:
     branches: [staging]
+  workflow_dispatch:
 
 # Least-privilege default: nothing is granted unless a job needs it.
 permissions:
