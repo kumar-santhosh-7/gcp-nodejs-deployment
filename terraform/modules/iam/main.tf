@@ -89,6 +89,80 @@ resource "google_service_account_iam_member" "deployer_can_actas_runtime" {
 }
 
 ############################################
+# `deployer` also runs terraform-apply.yml (plan/apply for network,
+# Cloud SQL, Secret Manager, IAM, and monitoring), in addition to
+# cd.yml's routine image deploys. That means this single identity now
+# needs much more than run.*/artifactregistry.* - the roles below add
+# what Terraform needs for the rest of the module set. This is a
+# deliberate simplicity-over-separation trade-off: because cd.yml's
+# automatic, workflow_run-triggered deploy uses the exact same SA,
+# anything that can trigger CD now sits behind an identity that can
+# also touch networking, IAM, and Secret Manager - a compromise of the
+# CD path is a compromise of these permissions too. A stricter posture
+# would give terraform-apply.yml its own, separate identity instead;
+# see git history for that version if you want to revisit it.
+#
+# Scoped predefined roles rather than one hand-rolled custom role: GCP
+# custom roles require exact permission strings (no wildcards), so
+# enumerating every permission this many resource types need by hand
+# would be fragile to keep correct as the module grows. Each role below
+# is scoped to a single GCP service and none of them is a primitive
+# Owner/Editor/Viewer role.
+#
+# One predefined role per GCP service this Terraform config manages:
+# compute.networkAdmin (VPC/subnet/firewall/global address), vpcaccess.admin
+# (Serverless VPC Access connector), servicenetworking.networksAdmin
+# (Private Services Access peering), cloudsql.admin (instance/database/user),
+# secretmanager.admin (secrets/versions/IAM), artifactregistry.admin (repo +
+# cleanup policy, on top of the narrower custom role above), run.admin
+# (service + job, likewise on top of the narrower custom role),
+# monitoring.alertPolicyEditor and monitoring.notificationChannelEditor
+# (alert policies/channels), logging.configWriter (log-based metrics),
+# iam.serviceAccountAdmin (manage the runtime/deployer SAs),
+# iam.workloadIdentityPoolAdmin (WIF pool/provider), iam.roleAdmin (the
+# custom secretReader/deployer roles), resourcemanager.projectIamAdmin
+# (bind those roles at project level), and serviceusage.serviceUsageAdmin
+# (enable required APIs).
+############################################
+
+locals {
+  deployer_infra_roles = [
+    "roles/compute.networkAdmin",
+    "roles/vpcaccess.admin",
+    "roles/servicenetworking.networksAdmin",
+    "roles/cloudsql.admin",
+    "roles/secretmanager.admin",
+    "roles/artifactregistry.admin",
+    "roles/run.admin",
+    "roles/monitoring.alertPolicyEditor",
+    "roles/monitoring.notificationChannelEditor",
+    "roles/logging.configWriter",
+    "roles/iam.serviceAccountAdmin",
+    "roles/iam.workloadIdentityPoolAdmin",
+    "roles/iam.roleAdmin",
+    "roles/resourcemanager.projectIamAdmin",
+    "roles/serviceusage.serviceUsageAdmin",
+  ]
+}
+
+resource "google_project_iam_member" "deployer_infra_roles" {
+  for_each = toset(local.deployer_infra_roles)
+  project  = var.project_id
+  role     = each.value
+  member   = "serviceAccount:${google_service_account.deployer.email}"
+}
+
+# Terraform state itself lives in a GCS bucket created manually (see
+# environments/prod/backend.tf), outside this config. Grant access to
+# ONLY that bucket rather than a project-wide storage role, so this SA
+# can't read/write any other bucket in the project.
+resource "google_storage_bucket_iam_member" "deployer_state_bucket" {
+  bucket = var.state_bucket_name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${google_service_account.deployer.email}"
+}
+
+############################################
 # Workload Identity Federation - GitHub Actions -> GCP, no JSON keys.
 ############################################
 

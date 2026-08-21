@@ -85,10 +85,11 @@ module "network" {
 ############################################
 
 module "iam" {
-  source      = "../../modules/iam"
-  project_id  = var.project_id
-  name_prefix = var.name_prefix
-  github_repo = var.github_repo
+  source            = "../../modules/iam"
+  project_id        = var.project_id
+  name_prefix       = var.name_prefix
+  github_repo       = var.github_repo
+  state_bucket_name = var.state_bucket_name
 
   depends_on = [google_project_service.apis]
 }

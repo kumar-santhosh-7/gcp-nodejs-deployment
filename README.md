@@ -51,8 +51,8 @@ created for Private Services Access.
 ### 1. One-time bootstrap (see "Bootstrapping without long-lived keys" below)
 A human with sufficient temporary permissions runs the first `terraform
 apply` to create the VPC, Cloud SQL instance, Secret Manager secrets,
-Artifact Registry repo, the two service accounts, and the Workload
-Identity Federation pool/provider itself.
+Artifact Registry repo, the two service accounts (`runtime`,
+`deployer`), and the Workload Identity Federation pool/provider itself.
 
 ```bash
 cd terraform/environments/prod
@@ -63,18 +63,20 @@ terraform apply
 ```
 
 ### 2. Wire up GitHub
-After the first apply, take the Terraform outputs and set them as
-repository **Variables** (not secrets, they aren't sensitive) and one
-**Secret**:
+After the first apply, take the Terraform outputs and set them on the
+GitHub **`production` Environment** (repo → Settings → Environments →
+production), not the repo-level Variables/Secrets tabs - `cd.yml` and
+both jobs in `terraform-apply.yml` run under `environment: production`,
+so that's the only place they're visible from:
 
 | Name | Source | Type |
 |---|---|---|
-| `GCP_PROJECT_ID` | your project id | Variable |
-| `WORKLOAD_IDENTITY_PROVIDER` | `terraform output workload_identity_provider` | Variable |
-| `DEPLOYER_SA_EMAIL` | `terraform output deployer_sa_email` | Variable |
-| `ALERT_EMAIL` | ops email | Variable |
-| `PLACEHOLDER_IMAGE` | any valid image ref, used only for `terraform plan` before the first image exists | Variable |
-| `GCHAT_WEBHOOK_URL` | Google Chat space webhook | **Secret** |
+| `GCP_PROJECT_ID` | your project id | Environment variable |
+| `WORKLOAD_IDENTITY_PROVIDER` | `terraform output workload_identity_provider` | Environment variable |
+| `DEPLOYER_SA_EMAIL` | `terraform output deployer_sa_email` | Environment variable |
+| `ALERT_EMAIL` | ops email | Environment variable |
+| `PLACEHOLDER_IMAGE` | any valid image ref, used only for `terraform plan` before the first image exists | Environment variable |
+| `GCHAT_WEBHOOK_URL` | Google Chat space webhook | **Environment secret** |
 
 No `GCP_SA_KEY` JSON secret is needed anywhere — authentication is via
 OIDC (see below).
@@ -127,13 +129,25 @@ execute <name_prefix>-migrate --region=<region> --wait`.
   Manager, and injected into Cloud Run as `secret_key_ref` env vars —
   Cloud Run pulls them directly from Secret Manager at container start.
   They're never written to `.env`, the Docker image, or a workflow log.
-- **No primitive roles anywhere.** Two custom, minimally-scoped IAM
-  roles: a runtime "secret reader" role (only
-  `secretmanager.versions.access` + `secretmanager.secrets.get`) for the
-  app's own identity, and a "deployer" role (only the specific
-  `run.services.*`, `artifactregistry.*` permissions CD needs) for
-  GitHub Actions. Neither ever holds `roles/owner`, `roles/editor`, or
-  `roles/viewer`.
+- **No primitive roles anywhere.** A runtime "secret reader" custom role
+  (only `secretmanager.versions.access` + `secretmanager.secrets.get`)
+  for the app's own identity, and a single "deployer" identity used by
+  *both* `cd.yml`'s automatic image deploys and `terraform-apply.yml`'s
+  infra changes. It holds its original narrow custom role
+  (`run.services.*`, `artifactregistry.*`) plus a set of scoped
+  predefined roles added on top for Terraform (`compute.networkAdmin`,
+  `cloudsql.admin`, `secretmanager.admin`, `iam.serviceAccountAdmin`,
+  plus bucket-scoped `storage.admin` on just the Terraform state
+  bucket, etc.). None of this is ever `roles/owner`, `roles/editor`, or
+  `roles/viewer` - but it is a deliberate simplicity-over-separation
+  trade-off worth being explicit about: because both pipelines share
+  this one identity, anything that can trigger the automatic,
+  `workflow_run`-based CD path now sits behind an identity that can
+  also modify networking, IAM, and Secret Manager. A stricter posture
+  would give `terraform-apply.yml` its own separate identity instead,
+  scoped only to what Terraform needs, so a compromised CD run could
+  never reach infra-management permissions - see the module's git
+  history for that version.
 - **`serviceAccountUser` is scoped to one resource**, not project-wide —
   the deployer can only `actAs` the specific runtime SA, not any SA in
   the project.
@@ -160,9 +174,14 @@ execute <name_prefix>-migrate --region=<region> --wait`.
 - **Artifact Registry cleanup policy** keeps only the 10 most recent
   tagged images, limiting the pool of old (potentially vulnerable)
   images sitting around.
-- **CD deploys the image only.** It never runs `terraform apply` against
-  full infra credentials — it uses the narrowly-scoped deployer role, so
-  even a compromised CD run can't touch IAM, networking, or Cloud SQL.
+- **CD deploys the image only** — `cd.yml` itself never runs `terraform
+  apply`, only `gcloud run deploy`/`gcloud run jobs execute`. Note this
+  is a process boundary, not a permissions one: since `cd.yml` and
+  `terraform-apply.yml` now share the same `deployer` identity (see
+  above), a compromised CD *run* is constrained by what its own steps
+  do, but a compromised CD *credential* (e.g. a malicious step added to
+  the workflow) could reach the same IAM/networking/Cloud SQL
+  permissions `terraform-apply.yml` uses.
 
 ---
 
@@ -171,9 +190,7 @@ execute <name_prefix>-migrate --region=<region> --wait`.
 This is the one genuine chicken-and-egg problem: the *first* `terraform
 apply` has to create the Workload Identity Federation pool/provider
 itself, plus the VPC, Cloud SQL, and IAM resources — none of which the
-narrowly-scoped `deployer` service account is allowed to touch (by
-design, since it should only ever need `run.*` and
-`artifactregistry.*`).
+`deployer` service account can do before it exists.
 
 How to bootstrap this securely, without ever generating a long-lived SA
 key:
@@ -191,15 +208,20 @@ key:
    binding with `google_project_iam_member` conditioned on an expiry, or
    simply removed again right after `apply` succeeds) — not left standing.
 3. Run `terraform apply` once from that identity to create the WIF
-   pool/provider and the two application service accounts.
+   pool/provider and the two application service accounts (`runtime`,
+   `deployer`).
 4. From that point on, GitHub Actions authenticates as the `deployer`
-   SA purely through WIF — no key material ever existed for it.
+   SA purely through WIF — no key material ever existed for it. Both
+   `cd.yml` and `terraform-apply.yml` use this same identity (see the
+   "No primitive roles anywhere" note above for the trade-off that
+   implies).
 5. Any *future* infra change goes through `terraform-apply.yml`'s
    `plan`-on-PR / manual-`apply`-on-approval flow, still using the
-   `deployer` identity's federation — if a future change needs
-   permissions the deployer role doesn't have, that's a deliberate
-   signal to go back to the human-bootstrap step for that one change,
-   rather than quietly widening the CI identity's standing permissions.
+   `deployer` identity's federation — if a change ever needs a
+   permission that role doesn't have (e.g. a new GCP service this
+   exercise doesn't use yet), that's a signal to add the specific
+   predefined role needed via the human-bootstrap step, rather than
+   falling back to a primitive role.
 
 If your organization can't use WIF at all (e.g. GitHub Enterprise
 Server without outbound HTTPS to Google's OIDC endpoint), the documented

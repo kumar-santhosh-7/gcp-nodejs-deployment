@@ -19,6 +19,12 @@ variable "github_repo" {
   type        = string
 }
 
+variable "state_bucket_name" {
+  description = "GCS bucket holding Terraform state - must match the bucket in backend.tf, since backend blocks can't reference variables"
+  type        = string
+  default     = "demo-staging-terraform-bucket"
+}
+
 variable "container_image" {
   description = "Full Artifact Registry image reference, e.g. asia-south1-docker.pkg.dev/PROJECT/nodeapp-repo/api:latest"
   type        = string
