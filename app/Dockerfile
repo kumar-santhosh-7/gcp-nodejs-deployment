@@ -5,7 +5,6 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 # Only copy manifest files first so this layer is cached unless deps change
 COPY package.json package-lock.json* ./
-# RUN npm install
 RUN npm ci --omit=dev --no-audit --no-fund
 
 # ---------- Stage 2: minimal runtime image ----------
@@ -15,7 +14,22 @@ FROM node:20-alpine AS runtime
 # - run as non-root (node:node user already exists in the alpine image, but
 #   we pin explicit uid/gid for clarity and to satisfy image scanners)
 # - drop package manager caches, no dev deps, no shell tools beyond base
-RUN addgroup -g 1001 appgroup && adduser -D -u 1001 -G appgroup appuser
+# - apply latest Alpine security patches (OS-level CVEs, e.g. OpenSSL)
+#   rather than relying solely on whatever the base image tag last baked in
+# - strip npm/npx/yarn/corepack entirely: this container only ever runs
+#   `node src/index.js`, it never invokes npm at runtime, so removing them
+#   eliminates an entire class of findings (npm bundles its own large
+#   dependency tree - tar, minimatch, glob, sigstore, etc. - purely for
+#   its own CLI use, none of which this app touches) and shrinks the
+#   attack surface generally
+RUN apk update && apk upgrade --no-cache \
+  && rm -rf /usr/local/lib/node_modules/npm \
+            /usr/local/lib/node_modules/corepack \
+            /usr/local/bin/npm \
+            /usr/local/bin/npx \
+            /usr/local/bin/corepack \
+            /opt/yarn-* \
+  && addgroup -g 1001 appgroup && adduser -D -u 1001 -G appgroup appuser
 
 WORKDIR /app
 ENV NODE_ENV=production \
