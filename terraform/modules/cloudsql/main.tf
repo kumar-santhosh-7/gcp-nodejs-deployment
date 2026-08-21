@@ -29,6 +29,7 @@ resource "google_sql_database_instance" "instance" {
       ipv4_enabled    = false
       private_network = var.vpc_id
       # Require SSL/TLS even on private connections as defense in depth.
+      # tfsec:ignore:google-sql-encrypt-in-transit-data -- ssl_mode=ENCRYPTED_ONLY already enforces TLS; require_ssl is deprecated
       ssl_mode = "ENCRYPTED_ONLY"
     }
 
