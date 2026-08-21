@@ -31,9 +31,17 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   connectionTimeoutMillis: 10000,
+  // See app/src/db.js for the full explanation - checkServerIdentity is
+  // overridden because Cloud SQL's server cert SAN is a managed DNS
+  // name, never the private IP we connect by, so hostname verification
+  // would always fail otherwise even with the correct CA.
   ssl:
     process.env.DB_SSL === 'true'
-      ? { rejectUnauthorized: true, ca: process.env.DB_SSL_CA }
+      ? {
+          rejectUnauthorized: true,
+          ca: process.env.DB_SSL_CA,
+          checkServerIdentity: () => undefined,
+        }
       : false,
 });
 

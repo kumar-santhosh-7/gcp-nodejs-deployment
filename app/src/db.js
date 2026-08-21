@@ -33,9 +33,24 @@ const pool = new Pool({
   // the DB_SSL_CA env block on the Cloud Run service). Passing it lets
   // Node verify it's actually talking to our Cloud SQL instance, not
   // just trusting whatever certificate is presented on the private IP.
+  //
+  // checkServerIdentity is overridden to skip hostname/SAN matching
+  // specifically: Cloud SQL's server cert SAN is the instance's managed
+  // *.sql.goog DNS name, never the private IP we actually connect to -
+  // connecting by IP will always fail Node's default hostname check
+  // against a DNS-only SAN, regardless of how correct the CA is. This
+  // is the standard, documented workaround for raw TLS connections to
+  // Cloud SQL (as opposed to using the Cloud SQL Auth Proxy or the
+  // official connector library, which handle this internally). CA
+  // verification still happens via the `ca` option above - we're only
+  // skipping the hostname match, not certificate trust.
   ssl:
     process.env.DB_SSL === 'true'
-      ? { rejectUnauthorized: true, ca: process.env.DB_SSL_CA }
+      ? {
+          rejectUnauthorized: true,
+          ca: process.env.DB_SSL_CA,
+          checkServerIdentity: () => undefined,
+        }
       : false,
 });
 
