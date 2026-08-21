@@ -15,6 +15,7 @@ jobs:
   plan:
     name: terraform plan
     runs-on: ubuntu-latest
+    environment: production # reads the same Environment variables as the apply job below; production has no required reviewers/wait timer, so this doesn't gate plan
     defaults:
       run:
         working-directory: terraform/environments/prod
