@@ -3,6 +3,11 @@ resource "google_cloud_run_v2_service" "service" {
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL" # switch to INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER for internal-only
 
+  # Provider v6+ defaults this to true, which blocks `terraform destroy`
+  # or forced replacement. Set to true for a real production service so
+  # a stray destroy/apply can't silently drop it; left false here since
+  # this module is actively being iterated on for a demo/interview build.
+
   template {
     service_account = var.runtime_service_account_email
 
@@ -68,14 +73,23 @@ resource "google_cloud_run_v2_service" "service" {
           }
         }
       }
+      env {
+        name = "DB_SSL_CA"
+        value_source {
+          secret_key_ref {
+            secret  = var.db_ssl_ca_secret_id
+            version = "latest"
+          }
+        }
+      }
 
       startup_probe {
         http_get {
           path = "/healthz"
         }
         initial_delay_seconds = 2
-        period_seconds         = 5
-        failure_threshold      = 5
+        period_seconds        = 5
+        failure_threshold     = 5
       }
 
       liveness_probe {
@@ -91,10 +105,75 @@ resource "google_cloud_run_v2_service" "service" {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
   }
+}
 
-  # lifecycle {
-  #   ignore_changes = all
-  # }
+# One-shot schema migration job. Reuses the exact same image as the
+# service (app/scripts/migrate.js), just with the command overridden.
+# cd.yml updates this job's image and executes it (--wait) BEFORE
+# deploying the new service revision, so traffic never hits a revision
+# whose schema expectations haven't been applied yet.
+resource "google_cloud_run_v2_job" "migrate" {
+  name     = "${var.name_prefix}-migrate"
+  location = var.region
+
+  template {
+    template {
+      service_account = var.runtime_service_account_email
+      max_retries     = 1
+      timeout         = "120s"
+
+      vpc_access {
+        connector = var.vpc_connector_id
+        egress    = "PRIVATE_RANGES_ONLY"
+      }
+
+      containers {
+        image   = var.container_image
+        command = ["node"]
+        args    = ["scripts/migrate.js"]
+
+        env {
+          name  = "DB_HOST"
+          value = var.db_private_ip
+        }
+        env {
+          name  = "DB_NAME"
+          value = var.db_name
+        }
+        env {
+          name  = "DB_SSL"
+          value = "true"
+        }
+        env {
+          name = "DB_USER"
+          value_source {
+            secret_key_ref {
+              secret  = var.db_user_secret_id
+              version = "latest"
+            }
+          }
+        }
+        env {
+          name = "DB_PASSWORD"
+          value_source {
+            secret_key_ref {
+              secret  = var.db_password_secret_id
+              version = "latest"
+            }
+          }
+        }
+        env {
+          name = "DB_SSL_CA"
+          value_source {
+            secret_key_ref {
+              secret  = var.db_ssl_ca_secret_id
+              version = "latest"
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 # Who can invoke the service. Default: require authentication (no

@@ -1,8 +1,9 @@
 locals {
   secrets = {
-    db_user     = var.db_user
-    db_password = var.db_password
-    db_name     = var.db_name
+    db_user        = var.db_user
+    db_password    = var.db_password
+    db_name        = var.db_name
+    db_ssl_ca_cert = var.db_ssl_ca_cert
   }
 }
 

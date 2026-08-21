@@ -59,13 +59,13 @@ resource "google_logging_metric" "error_count" {
 
 resource "google_monitoring_alert_policy" "cpu_warning" {
   display_name = "${var.name_prefix} Cloud Run CPU > 70% (warning)"
-  combiner      = "OR"
-  severity      = "WARNING"
+  combiner     = "OR"
+  severity     = "WARNING"
 
   conditions {
     display_name = "CPU utilization > 70%"
     condition_threshold {
-      filter = <<-EOT
+      filter          = <<-EOT
         resource.type = "cloud_run_revision"
         AND resource.labels.service_name = "${var.cloud_run_service_name}"
         AND metric.type = "run.googleapis.com/container/cpu/utilizations"
@@ -92,13 +92,13 @@ resource "google_monitoring_alert_policy" "cpu_warning" {
 
 resource "google_monitoring_alert_policy" "cpu_critical" {
   display_name = "${var.name_prefix} Cloud Run CPU > 80% sustained (critical)"
-  combiner      = "OR"
-  severity      = "CRITICAL"
+  combiner     = "OR"
+  severity     = "CRITICAL"
 
   conditions {
     display_name = "CPU utilization > 80% for 3 consecutive datapoints"
     condition_threshold {
-      filter = <<-EOT
+      filter          = <<-EOT
         resource.type = "cloud_run_revision"
         AND resource.labels.service_name = "${var.cloud_run_service_name}"
         AND metric.type = "run.googleapis.com/container/cpu/utilizations"
@@ -131,13 +131,13 @@ resource "google_monitoring_alert_policy" "cpu_critical" {
 
 resource "google_monitoring_alert_policy" "memory_warning" {
   display_name = "${var.name_prefix} Cloud Run memory > 70% (warning)"
-  combiner      = "OR"
-  severity      = "WARNING"
+  combiner     = "OR"
+  severity     = "WARNING"
 
   conditions {
     display_name = "Memory utilization > 70%"
     condition_threshold {
-      filter = <<-EOT
+      filter          = <<-EOT
         resource.type = "cloud_run_revision"
         AND resource.labels.service_name = "${var.cloud_run_service_name}"
         AND metric.type = "run.googleapis.com/container/memory/utilizations"
@@ -164,13 +164,13 @@ resource "google_monitoring_alert_policy" "memory_warning" {
 
 resource "google_monitoring_alert_policy" "memory_critical" {
   display_name = "${var.name_prefix} Cloud Run memory > 80% sustained (critical)"
-  combiner      = "OR"
-  severity      = "CRITICAL"
+  combiner     = "OR"
+  severity     = "CRITICAL"
 
   conditions {
     display_name = "Memory utilization > 80% for 3 consecutive datapoints"
     condition_threshold {
-      filter = <<-EOT
+      filter          = <<-EOT
         resource.type = "cloud_run_revision"
         AND resource.labels.service_name = "${var.cloud_run_service_name}"
         AND metric.type = "run.googleapis.com/container/memory/utilizations"

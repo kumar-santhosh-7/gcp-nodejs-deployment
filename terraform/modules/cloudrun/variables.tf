@@ -35,6 +35,10 @@ variable "db_password_secret_id" {
   type = string
 }
 
+variable "db_ssl_ca_secret_id" {
+  type = string
+}
+
 variable "min_instances" {
   type    = number
   default = 0

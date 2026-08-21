@@ -29,7 +29,7 @@ resource "google_sql_database_instance" "instance" {
       ipv4_enabled    = false
       private_network = var.vpc_id
       # Require SSL/TLS even on private connections as defense in depth.
-      ssl_mode = "ENCRYPTED_ONLY"
+      ssl_mode    = "ENCRYPTED_ONLY"
       require_ssl = true
     }
 
