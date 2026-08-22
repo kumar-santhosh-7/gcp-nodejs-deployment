@@ -28,20 +28,11 @@ resource "google_project_iam_member" "runtime_secret_role" {
   member  = "serviceAccount:${google_service_account.runtime.email}"
 }
 
-# Cloud Trace / structured logging from the app itself (writing app logs
-# via stdout is auto-collected by Cloud Run without extra IAM, but if the
-# app ever writes custom log entries via the API this is needed).
-resource "google_project_iam_member" "runtime_log_writer" {
-  project = var.project_id
-  role    = "roles/logging.logWriter"
-  member  = "serviceAccount:${google_service_account.runtime.email}"
-}
-
-resource "google_project_iam_member" "runtime_metric_writer" {
-  project = var.project_id
-  role    = "roles/monitoring.metricWriter"
-  member  = "serviceAccount:${google_service_account.runtime.email}"
-}
+# No logging.logWriter / monitoring.metricWriter grant here: the app only
+# ever logs via stdout (pino), which Cloud Run's own logging agent
+# collects automatically without any IAM grant on the runtime SA. Those
+# two roles would only be needed if the app called the Logging/Monitoring
+# APIs directly - add them then, not preemptively.
 
 ############################################
 # CI/CD deployer service account - used ONLY by GitHub Actions,
@@ -84,8 +75,8 @@ resource "google_project_iam_member" "deployer_role_binding" {
 # project-wide serviceAccountUser.
 resource "google_service_account_iam_member" "deployer_can_actas_runtime" {
   service_account_id = google_service_account.runtime.name
-  role                = "roles/iam.serviceAccountUser"
-  member              = "serviceAccount:${google_service_account.deployer.email}"
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.deployer.email}"
 }
 
 ############################################
@@ -142,7 +133,6 @@ locals {
     "roles/iam.roleAdmin",
     "roles/resourcemanager.projectIamAdmin",
     "roles/serviceusage.serviceUsageAdmin",
-    "roles/storage.admin",
   ]
 }
 
@@ -194,6 +184,6 @@ resource "google_iam_workload_identity_pool_provider" "github_provider" {
 
 resource "google_service_account_iam_member" "wif_binding" {
   service_account_id = google_service_account.deployer.name
-  role                = "roles/iam.workloadIdentityUser"
-  member              = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_pool.name}/attribute.repository/${var.github_repo}"
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_pool.name}/attribute.repository/${var.github_repo}"
 }
