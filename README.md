@@ -282,15 +282,3 @@ at a different notification channel, mirroring the requirement:
 - The GitHub Actions "Variables" used in the workflows (`GCP_PROJECT_ID`,
   `WORKLOAD_IDENTITY_PROVIDER`, etc.) are assumed to be configured once
   in repo settings after the bootstrap `apply`, as described above.
-
----
-
-## A note on how this was built
-
-This solution was produced with AI assistance as an accelerant for
-scaffolding (boilerplate Terraform/YAML, standard security patterns),
-per the brief's request to minimize excessive AI use in favor of
-demonstrating personal expertise — every design decision above (private
-IP + connector, WIF bootstrap trade-off, custom IAM roles, the two-tier
-alerting) should be treated as something to be defended and modified
-live in discussion, not just read aloud.
