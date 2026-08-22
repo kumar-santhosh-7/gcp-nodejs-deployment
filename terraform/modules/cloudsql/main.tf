@@ -36,7 +36,7 @@ resource "google_sql_database_instance" "instance" {
       # request - sending both causes a 400 invalidRequest. require_ssl
       # is deprecated in favor of ssl_mode, but is kept here as the
       # active field; ssl_mode is intentionally omitted.
-      require_ssl = true
+      # require_ssl = true   # commented because of deprecated message and errors in pipeline
     }
 
     insights_config {
